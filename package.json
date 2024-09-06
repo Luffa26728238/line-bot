@@ -13,6 +13,7 @@
     "@line/bot-sdk": "^9.4.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "natural": "^8.0.1"
+    "natural": "^8.0.1",
+    "node-fetch": "^2.7.0"
   }
 }

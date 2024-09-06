@@ -1,6 +1,6 @@
 const express = require("express")
 const line = require("@line/bot-sdk")
-const natural = require("natural")
+const fetch = require("node-fetch")
 require("dotenv").config()
 
 const app = express()
@@ -12,16 +12,6 @@ const config = {
 
 const client = new line.Client(config)
 
-const classifier = new natural.BayesClassifier()
-
-classifier.addDocument("你好", "greeting")
-classifier.addDocument("嗨", "greeting")
-classifier.addDocument("再見", "farewell")
-classifier.addDocument("拜拜", "farewell")
-classifier.addDocument("天氣如何", "weather")
-classifier.addDocument("今天天氣怎麼樣", "weather")
-classifier.train()
-
 app.post("/callback", line.middleware(config), (req, res) => {
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
@@ -31,33 +21,36 @@ app.post("/callback", line.middleware(config), (req, res) => {
     })
 })
 
-function handleEvent(event) {
+async function handleEvent(event) {
   if (event.type !== "message" || event.message.type !== "text") {
     return Promise.resolve(null)
   }
 
   const userMessage = event.message.text
-  const category = classifier.classify(userMessage)
-  let replyText
 
-  switch (category) {
-    case "greeting":
-      replyText = "你好！歡迎你來到line測試機器人，我們後續會新增更多功能！。"
-      break
-    case "farewell":
-      replyText = "再見！希望很快能再次見到你。"
-      break
-    case "weather":
-      replyText = "今天天氣不錯，適合出門走走。"
-      break
-    default:
-      replyText = "抱歉，我不太明白你的意思。能請你換個方式說明嗎？"
+  try {
+    const response = await fetch(
+      "https://api-inference.huggingface.co/models/facebook/blenderbot-400M-distill",
+      {
+        headers: { Authorization: `Bearer ${process.env.HUGGINGFACE_API_KEY}` },
+        method: "POST",
+        body: JSON.stringify({ inputs: userMessage }),
+      }
+    )
+    const result = await response.json()
+    const aiReply = result[0].generated_text
+
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: aiReply,
+    })
+  } catch (error) {
+    console.error("Error:", error)
+    return client.replyMessage(event.replyToken, {
+      type: "text",
+      text: "抱歉，我現在無法回答。請稍後再試。",
+    })
   }
-
-  return client.replyMessage(event.replyToken, {
-    type: "text",
-    text: replyText,
-  })
 }
 
 const port = process.env.PORT || 3000
