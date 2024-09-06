@@ -1,23 +1,27 @@
-require("dotenv").config()
-
 const express = require("express")
 const line = require("@line/bot-sdk")
+const natural = require("natural")
+require("dotenv").config()
 
-// create LINE SDK config from env variables
+const app = express()
+
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 }
 
-// create LINE SDK client
 const client = new line.Client(config)
 
-// create Express app
-// about Express itself: https://expressjs.com/
-const app = express()
+const classifier = new natural.BayesClassifier()
 
-// register a webhook handler with middleware
-// about the middleware, please refer to doc
+classifier.addDocument("你好", "greeting")
+classifier.addDocument("嗨", "greeting")
+classifier.addDocument("再見", "farewell")
+classifier.addDocument("拜拜", "farewell")
+classifier.addDocument("天氣如何", "weather")
+classifier.addDocument("今天天氣怎麼樣", "weather")
+classifier.train()
+
 app.post("/callback", line.middleware(config), (req, res) => {
   Promise.all(req.body.events.map(handleEvent))
     .then((result) => res.json(result))
@@ -27,21 +31,35 @@ app.post("/callback", line.middleware(config), (req, res) => {
     })
 })
 
-// event handler
 function handleEvent(event) {
   if (event.type !== "message" || event.message.type !== "text") {
-    // ignore non-text-message event
     return Promise.resolve(null)
   }
 
-  // create a echoing text message
-  const echo = { type: "text", text: event.message.text }
+  const userMessage = event.message.text
+  const category = classifier.classify(userMessage)
+  let replyText
 
-  // use reply API
-  return client.replyMessage(event.replyToken, echo)
+  switch (category) {
+    case "greeting":
+      replyText = "你好！很高興見到你。"
+      break
+    case "farewell":
+      replyText = "再見！希望很快能再次見到你。"
+      break
+    case "weather":
+      replyText = "今天天氣不錯，適合出門走走。"
+      break
+    default:
+      replyText = "抱歉，我不太明白你的意思。能請你換個方式說明嗎？"
+  }
+
+  return client.replyMessage(event.replyToken, {
+    type: "text",
+    text: replyText,
+  })
 }
 
-// listen on port
 const port = process.env.PORT || 3000
 app.listen(port, () => {
   console.log(`listening on ${port}`)
