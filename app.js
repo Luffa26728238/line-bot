@@ -42,7 +42,7 @@ function handleEvent(event) {
 
   switch (category) {
     case "greeting":
-      replyText = "你好！很高興見到你。"
+      replyText = "你好！歡迎你來到line測試機器人，我們後續會新增更多功能！。"
       break
     case "farewell":
       replyText = "再見！希望很快能再次見到你。"
