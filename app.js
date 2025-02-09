@@ -1,7 +1,8 @@
+require("dotenv").config()
+
 const express = require("express")
 const line = require("@line/bot-sdk")
 const fetch = require("node-fetch")
-require("dotenv").config()
 
 const app = express()
 
